@@ -2,21 +2,29 @@ extern crate savefile;
 use savefile::prelude::*;
 use std::collections::HashMap;
 use std::env;
+use std::process::exit;
 
+// MACROS:
 #[macro_use]
 extern crate savefile_derive;
+// STRUCTS:
 #[derive(Savefile)]
 struct ShortCuts {
     shortcuts: HashMap<String, String>,
 }
 
-fn parse_args(a: &Vec<String>) -> Option<Vec<String>> {
-    if a.is_empty() {
-        return None;
+// TYPES:
+type Operation = fn(&mut ShortCuts, Vec<String>);
+
+// FUNCTIONS:
+fn parse_args(a: &Vec<String>) -> Vec<String> {
+    if a.len() < 2 {
+        eprintln!("Not enough arguments!");
+        exit(1);
     }
     let mut newvec = a.clone();
     newvec.remove(0);
-    return Some(newvec);
+    return newvec;
 }
 
 fn save_shortcuts(sc: &ShortCuts, p: &str) {
@@ -29,27 +37,89 @@ fn load_shortcuts(p: &str) -> ShortCuts {
     })
 }
 
+fn operation_err(sc: &mut ShortCuts, args: Vec<String>) {
+    println!("Invalid operation!");
+    exit(1);
+}
+
+fn list_shortcuts(sc: &mut ShortCuts, _args: Vec<String>) {
+    if sc.shortcuts.len() == 0 {
+        println!("No shortcuts!");
+        return;
+    }
+
+    println!("Your shortcuts:");
+
+    for (k, v) in &sc.shortcuts {
+        println!("{} : {}", k, v);
+    }
+}
+
+fn run_shortcut(sc: &mut ShortCuts, args: Vec<String>) {
+    todo!()
+}
+
+fn open_shortcut(sc: &mut ShortCuts, args: Vec<String>) {
+    todo!()
+}
+
+fn del_shortcut(sc: &mut ShortCuts, args: Vec<String>) {
+    todo!()
+}
+
+fn add_shortcut(sc: &mut ShortCuts, args: Vec<String>) {
+    //TODO: Check if the given path points to dir or file, first relative, then absolute - add full absolute path to shortcut
+    if args.len() != 2 {
+        println!(
+            "Wrong number of args for add, 2 required but {} given",
+            args.len()
+        );
+        exit(1);
+    }
+    sc.shortcuts.insert(args[0].clone(), args[1].clone());
+}
+
+fn get_operation(o_name: &str) -> Option<Operation> {
+    match o_name {
+        "add" => Some(add_shortcut),
+        "del" => Some(del_shortcut),
+        "list" => Some(list_shortcuts),
+        "run" => Some(run_shortcut),
+        "open" => Some(open_shortcut),
+        _ => None,
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let n = parse_args(&args);
-    println!("{:?}", n);
+    let mut parsed = parse_args(&args);
+    let op = parsed.remove(0);
+    let mut sc = load_shortcuts("save.bin");
+    let f: Operation;
+
+    match get_operation(&op) {
+        Some(o) => f = o,
+        None => f = operation_err,
+    }
+
+    f(&mut sc, parsed);
+    save_shortcuts(&sc, "save.bin");
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{load_shortcuts, parse_args, save_shortcuts, ShortCuts};
+    use crate::{
+        add_shortcut, del_shortcut, get_operation, list_shortcuts, load_shortcuts, open_shortcut,
+        parse_args, run_shortcut, save_shortcuts, ShortCuts,
+    };
 
     #[test]
     fn test_parse_args() {
         let arg = vec!["prog".to_string(), "1".to_string(), "2".to_string()];
         let res = parse_args(&arg);
-
-        match res {
-            Some(a) => assert!(vec_is_eq(&a, &vec!["1".to_string(), "2".to_string()])),
-            None => assert!(false),
-        }
+        assert!(vec_is_eq(&res, &vec!["1".to_string(), "2".to_string()]))
     }
 
     #[test]
@@ -74,6 +144,43 @@ mod tests {
             &load_shortcuts("thisisnotafile.bin").shortcuts,
             &HashMap::new()
         ))
+    }
+
+    #[test]
+    fn test_get_operations() {
+        assert_eq!(
+            get_operation("add").unwrap() as usize,
+            add_shortcut as usize
+        );
+        assert_eq!(
+            get_operation("del").unwrap() as usize,
+            del_shortcut as usize
+        );
+        assert_eq!(
+            get_operation("list").unwrap() as usize,
+            list_shortcuts as usize
+        );
+        assert_eq!(
+            get_operation("open").unwrap() as usize,
+            open_shortcut as usize
+        );
+        assert_eq!(
+            get_operation("run").unwrap() as usize,
+            run_shortcut as usize
+        );
+        assert!(get_operation("nonsenseOP").is_none());
+    }
+
+    #[test]
+    fn test_add_shortcut() {
+        let mut sc = ShortCuts {
+            shortcuts: HashMap::new(),
+        };
+        let mut hm = HashMap::new();
+        add_shortcut(&mut sc, vec!["home".to_string(), "~".to_string()]);
+        hm.insert("home".to_string(), "~".to_string());
+
+        assert!(hm_is_eq(&hm, &sc.shortcuts));
     }
 
     fn vec_is_eq(v1: &Vec<String>, v2: &Vec<String>) -> bool {
