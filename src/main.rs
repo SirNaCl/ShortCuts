@@ -28,6 +28,7 @@ fn parse_args(a: &Vec<String>) -> Vec<String> {
 }
 
 fn save_shortcuts(sc: &ShortCuts, p: &str) {
+    // TODO: Save and load from executable dir and not from running dir
     save_file(p, 0, sc).unwrap();
 }
 
@@ -63,8 +64,21 @@ fn open_shortcut(sc: &mut ShortCuts, args: Vec<String>) {
     todo!()
 }
 
+fn get_shortcut(sc: &mut ShortCuts, args: Vec<String>) {
+    todo!() // Print out the path, should work with pipe
+}
+
 fn del_shortcut(sc: &mut ShortCuts, args: Vec<String>) {
-    todo!()
+    if args.len() < 1 {
+        println!("The del operator needs at least 1 shortcut as argument...");
+        exit(1);
+    }
+    for a in args {
+        match sc.shortcuts.remove(&a) {
+            Some(_v) => println!("Removed shortcut \"{}\"", a),
+            None => println!("Couldn't find shortcut \"{}\"", a),
+        }
+    }
 }
 
 fn add_shortcut(sc: &mut ShortCuts, args: Vec<String>) {
@@ -108,7 +122,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, path::PathBuf, process::exit};
 
     use crate::{
         add_shortcut, del_shortcut, get_operation, list_shortcuts, load_shortcuts, open_shortcut,
@@ -169,6 +183,39 @@ mod tests {
             run_shortcut as usize
         );
         assert!(get_operation("nonsenseOP").is_none());
+    }
+    #[test]
+    fn test_open_shortcut() {
+        let mut sc = ShortCuts {
+            shortcuts: HashMap::new(),
+        };
+        let s_path = match std::env::current_dir() {
+            Ok(p) => p,
+            Err(e) => exit(1),
+        };
+        sc.shortcuts.insert("root".to_string(), "/".to_string());
+        open_shortcut(&mut sc, vec!["root".to_string()]);
+        let r_path = match std::env::current_dir() {
+            Ok(p) => p,
+            Err(e) => exit(1),
+        };
+
+        assert_ne!(r_path, s_path);
+        let p = PathBuf::from(r"/");
+
+        assert_eq!(r_path, p);
+    }
+
+    #[test]
+    fn test_del_shortcut() {
+        let mut sc = ShortCuts {
+            shortcuts: HashMap::new(),
+        };
+        let hm = HashMap::new();
+        sc.shortcuts.insert("home".to_string(), "~".to_string());
+        del_shortcut(&mut sc, vec!["home".to_string()]);
+
+        assert!(hm_is_eq(&hm, &sc.shortcuts));
     }
 
     #[test]
