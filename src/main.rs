@@ -24,7 +24,9 @@ fn save_shortcuts(sc: &ShortCuts, p: &str) {
 }
 
 fn load_shortcuts(p: &str) -> ShortCuts {
-    load_file(p, 0).unwrap()
+    load_file(p, 0).unwrap_or(ShortCuts {
+        shortcuts: HashMap::new(),
+    })
 }
 
 fn main() {
@@ -61,7 +63,17 @@ mod tests {
         save_shortcuts(&test_sc, "test_data/save.bin");
         let loaded = load_shortcuts("test_data/save.bin");
 
+        // Test that we can save and load file
         assert!(hm_is_eq(&test_sc.shortcuts, &loaded.shortcuts));
+    }
+
+    #[test]
+    fn test_load_nonexistant() {
+        // Test that we load a new Shortcuts instance if no file is found
+        assert!(hm_is_eq(
+            &load_shortcuts("thisisnotafile.bin").shortcuts,
+            &HashMap::new()
+        ))
     }
 
     fn vec_is_eq(v1: &Vec<String>, v2: &Vec<String>) -> bool {
